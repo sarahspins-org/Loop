@@ -49,6 +49,13 @@ extension NotificationManager {
             options: .customDismissAction
         ))
 
+        categories.append(UNNotificationCategory(
+            identifier: basalReviewIdentifier,
+            actions: [],
+            intentIdentifiers: [],
+            options: []
+        ))
+
         return Set(categories)
     }
 
@@ -263,6 +270,48 @@ extension NotificationManager {
         }
     }
     
+    // MARK: - Basal review
+
+    static let basalReviewIdentifier = "com.loopkit.Loop.BasalReview"
+
+    static func sendBasalReviewNotification(for review: BasalReview) {
+        let notification = UNMutableNotificationContent()
+        notification.title = NSLocalizedString("Basal Review", comment: "Notification title when the basal review has a suggestion")
+        notification.body = basalReviewSummary(for: review)
+        notification.sound = .default
+        notification.categoryIdentifier = basalReviewIdentifier
+        notification.userInfo = ["basalReviewID": review.id.uuidString]
+
+        let request = UNNotificationRequest(
+            /// One identifier, so a newer suggestion replaces an older one.
+            identifier: basalReviewIdentifier,
+            content: notification,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    static func removeBasalReviewNotification() {
+        let center = UNUserNotificationCenter.current()
+        center.removeDeliveredNotifications(withIdentifiers: [basalReviewIdentifier])
+        center.removePendingNotificationRequests(withIdentifiers: [basalReviewIdentifier])
+    }
+
+    static func basalReviewSummary(for review: BasalReview) -> String {
+        let raises = review.changes.filter { $0.proposedRate > $0.currentRate }.count
+        let lowers = review.changes.count - raises
+        let format: String
+        switch (raises > 0, lowers > 0) {
+        case (true, true):
+            format = NSLocalizedString("Loop suggests raising basal at some times of day and lowering it at others, based on the last 3 days. Tap to review.", comment: "Basal review notification body: mixed")
+        case (true, false):
+            format = NSLocalizedString("Loop suggests raising basal at some times of day, based on the last 3 days. Tap to review.", comment: "Basal review notification body: raise")
+        default:
+            format = NSLocalizedString("Loop suggests lowering basal at some times of day, based on the last 3 days. Tap to review.", comment: "Basal review notification body: lower")
+        }
+        return format
+    }
+
     private static func remoteCarbEntryNotificationBody(amountInGrams: Double) -> String {
         return String(format: NSLocalizedString("Remote Carbs Entry: %d grams", comment: "The carb amount message for a remote carbs entry notification. (1: Carb amount in grams)"), Int(amountInGrams))
     }

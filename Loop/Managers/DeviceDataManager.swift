@@ -404,6 +404,10 @@ final class DeviceDataManager {
         cacheStore.delegate = loopManager
         loopManager.presetActivationObservers.append(alertManager)
         loopManager.presetActivationObservers.append(analyticsServicesManager)
+        loopManager.basalReviewManager.pumpBasalLimits = { [weak self] in
+            guard let pumpManager = self?.pumpManager else { return nil }
+            return (pumpManager.supportedBasalRates, pumpManager.maximumBasalScheduleEntryCount)
+        }
 
         watchManager = WatchDataManager(deviceManager: self, healthStore: healthStore)
 

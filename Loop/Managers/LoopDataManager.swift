@@ -35,6 +35,8 @@ final class LoopDataManager {
     
     private let mealDetectionManager: MealDetectionManager
 
+    let basalReviewManager = BasalReviewManager()
+
     private let doseStore: DoseStoreProtocol
 
     let dosingDecisionStore: DosingDecisionStoreProtocol
@@ -301,6 +303,7 @@ final class LoopDataManager {
 
         if newValue.basalRateSchedule != oldValue.basalRateSchedule {
             doseStore.basalProfile = newValue.basalRateSchedule
+            basalReviewManager.basalScheduleDidChange(at: now())
 
             if let newValue = newValue.basalRateSchedule, let oldValue = oldValue.basalRateSchedule, newValue.items != oldValue.items {
                 analyticsServicesManager.didChangeBasalRateSchedule()
@@ -944,6 +947,14 @@ extension LoopDataManager {
                 }                
             }
         }
+
+        let loopSettings = settings
+        basalReviewManager.recordLoopCompleted(at: now(), activeOverride: loopSettings.scheduleOverride)
+        basalReviewManager.reviewIfDue(
+            now: now(),
+            loopSettings: loopSettings,
+            sources: .init(doseStore: doseStore, carbStore: carbStore, glucoseStore: glucoseStore)
+        )
 
         // 5 second delay to allow stores to cache data before it is read by widget
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) {

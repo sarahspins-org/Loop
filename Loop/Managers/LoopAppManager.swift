@@ -544,6 +544,19 @@ extension LoopAppManager: AlertPresenter {
     }
 }
 
+// MARK: - Basal review
+
+extension LoopAppManager {
+    func presentBasalReview() {
+        guard let deviceDataManager else { return }
+        let controller = BasalReviewView.hostingController(
+            therapySettings: { [weak deviceDataManager] in deviceDataManager?.loopManager.therapySettings ?? TherapySettings() },
+            delegate: deviceDataManager
+        )
+        rootViewController?.topmostViewController.present(controller, animated: true)
+    }
+}
+
 // MARK: - DeviceOrientationController
 
 extension LoopAppManager: DeviceOrientationController {
@@ -566,7 +579,8 @@ extension LoopAppManager: UNUserNotificationCenterDelegate {
              LoopNotificationCategory.remoteBolusFailure.rawValue,
              LoopNotificationCategory.remoteCarbs.rawValue,
              LoopNotificationCategory.remoteCarbsFailure.rawValue,
-             LoopNotificationCategory.missedMeal.rawValue:
+             LoopNotificationCategory.missedMeal.rawValue,
+             NotificationManager.basalReviewIdentifier:
             completionHandler([.badge, .sound, .list, .banner])
         default:
             // For all others, banners are not to be displayed while in the foreground
@@ -599,6 +613,11 @@ extension LoopAppManager: UNUserNotificationCenterDelegate {
                 alertManager?.acknowledgeAlert(identifier: Alert.Identifier(managerIdentifier: managerIdentifier, alertIdentifier: alertIdentifier))
             }
         case UNNotificationDefaultActionIdentifier:
+            if response.notification.request.identifier == NotificationManager.basalReviewIdentifier {
+                presentBasalReview()
+                break
+            }
+
             guard response.notification.request.identifier == LoopNotificationCategory.missedMeal.rawValue else {
                 break
             }

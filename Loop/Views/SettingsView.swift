@@ -279,6 +279,15 @@ extension SettingsView {
                             descriptiveText: NSLocalizedString("Diabetes Treatment", comment: "Descriptive text for Therapy Settings"))
             }
 
+            NavigationLink(destination: BasalReviewView(therapySettings: viewModel.therapySettings,
+                                                        delegate: viewModel.therapySettingsViewModelDelegate)) {
+                LargeButton(action: { },
+                            includeArrow: false,
+                            imageView: Image(systemName: "chart.line.uptrend.xyaxis").foregroundColor(.accentColor),
+                            label: NSLocalizedString("Basal Review", comment: "Title text for button to Basal Review"),
+                            descriptiveText: NSLocalizedString("Suggested basal changes", comment: "Descriptive text for Basal Review"))
+            }
+
             ForEach(pluginMenuItems.filter {$0.section == .configuration}) { item in
                 item.view
             }
