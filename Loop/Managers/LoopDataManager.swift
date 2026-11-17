@@ -1813,7 +1813,26 @@ extension LoopDataManager {
 
             // automaticDosingIOBLimit calculated from the user entered maxBolus
             let automaticDosingIOBLimit = maxBolus! * 2.0
-            let iobHeadroom = automaticDosingIOBLimit - self.insulinOnBoard!.value
+            var iobHeadroom = automaticDosingIOBLimit - self.insulinOnBoard!.value
+
+            // Additional glucose-aware stacking limit (see GlucoseAwareIOBLimit.swift).
+            // Clamped at zero so it only blocks additional insulin; it never forces
+            // basal below scheduled by itself.
+            if GlucoseAwareIOBLimit.isEnabled {
+                let glucoseAwareIOBLimit = GlucoseAwareIOBLimit.maximumInsulinOnBoard(
+                    glucose: glucose.quantity.doubleValue(for: .milligramsPerDeciliter),
+                    correctionRangeLowerBound: glucoseTargetRange!.quantityRange(at: startDate).lowerBound.doubleValue(for: .milligramsPerDeciliter),
+                    scheduledSensitivity: insulinSensitivity!.quantity(at: startDate).doubleValue(for: .milligramsPerDeciliter),
+                    carbsOnBoard: self.carbsOnBoard?.quantity.doubleValue(for: .gram()) ?? 0,
+                    carbRatio: carbRatioScheduleApplyingOverrideHistory!.value(at: startDate)
+                )
+                let glucoseAwareHeadroom = max(0, glucoseAwareIOBLimit - self.insulinOnBoard!.value)
+                if glucoseAwareHeadroom < iobHeadroom {
+                    self.logger.default("Glucose-aware IOB limit %.2f U (IOB %.2f U) reduces automatic dosing headroom from %.2f U to %.2f U",
+                                        glucoseAwareIOBLimit, self.insulinOnBoard!.value, iobHeadroom, glucoseAwareHeadroom)
+                    iobHeadroom = glucoseAwareHeadroom
+                }
+            }
 
             switch settings.automaticDosingStrategy {
             case .automaticBolus:
