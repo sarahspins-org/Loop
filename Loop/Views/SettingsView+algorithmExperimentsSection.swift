@@ -41,6 +41,7 @@ public struct ExperimentRow: View {
 public struct ExperimentsSettingsView: View {
     @AppStorage(UserDefaults.Key.GlucoseBasedApplicationFactorEnabled.rawValue) private var isGlucoseBasedApplicationFactorEnabled = false
     @AppStorage(UserDefaults.Key.IntegralRetrospectiveCorrectionEnabled.rawValue) private var isIntegralRetrospectiveCorrectionEnabled = false
+    @AppStorage(UserDefaults.GlucoseAwareIOBLimitKey.enabled) private var isGlucoseAwareIOBLimitEnabled = false
     var automaticDosingStrategy: AutomaticDosingStrategy
 
     public var body: some View {
@@ -69,6 +70,11 @@ public struct ExperimentsSettingsView: View {
                     ExperimentRow(
                         name: NSLocalizedString("Integral Retrospective Correction", comment: "Title of integral retrospective correction experiment"),
                         enabled: isIntegralRetrospectiveCorrectionEnabled)
+                }
+                NavigationLink(destination: GlucoseAwareIOBLimitSelectionView(isEnabled: $isGlucoseAwareIOBLimitEnabled)) {
+                    ExperimentRow(
+                        name: NSLocalizedString("Glucose-Aware IOB Limit", comment: "Title of glucose-aware IOB limit experiment"),
+                        enabled: isGlucoseAwareIOBLimitEnabled)
                 }
                 Spacer()
             }

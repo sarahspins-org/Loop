@@ -2289,6 +2289,7 @@ extension LoopDataManager {
                 "error: \(String(describing: state.error))",
                 "overrideInUserDefaults: \(String(describing: UserDefaults.appGroup?.intentExtensionOverrideToSet))",
                 "glucoseBasedApplicationFactorEnabled: \(UserDefaults.standard.glucoseBasedApplicationFactorEnabled)",
+                "glucoseAwareIOBLimitEnabled: \(GlucoseAwareIOBLimit.isEnabled), breakpoint: \(GlucoseAwareIOBLimit.sensitivityBreakpoint) mg/dL, lowRangeSensitivity: \(GlucoseAwareIOBLimit.lowRangeSensitivity) mg/dL/U",
                 "",
                 String(reflecting: self.retrospectiveCorrection),
                 "",
