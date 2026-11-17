@@ -1437,10 +1437,73 @@ final class StatusTableViewController: LoopChartsTableViewController {
     @IBAction func unwindFromSettings(_ segue: UIStoryboardSegue) {}
 
     @IBAction func userTappedAddCarbs() {
-        presentCarbEntryScreen(nil)
+        // The simple bolus calculator (closed loop off) has its own combined screen; keep it unchanged.
+        if FeatureFlags.simpleBolusCalculatorEnabled && !automaticDosingStatus.automaticDosingEnabled {
+            presentCarbEntryScreen(nil)
+        } else {
+            presentMealPresetMenu()
+        }
     }
 
-    func presentCarbEntryScreen(_ activity: NSUserActivity?) {
+    // MARK: - Quick meal presets
+
+    private func presentMealPresetMenu() {
+        let menu = UIAlertController(
+            title: NSLocalizedString("Add Meal", comment: "Title of quick meal preset menu"),
+            message: nil,
+            preferredStyle: .actionSheet
+        )
+
+        for preset in MealPreset.allCases {
+            menu.addAction(UIAlertAction(title: preset.menuTitle, style: .default) { [weak self] _ in
+                self?.presentQuickMealBolus(for: preset)
+            })
+        }
+
+        menu.addAction(UIAlertAction(title: NSLocalizedString("Customize…", comment: "Quick meal preset menu option to open the full carb entry screen"), style: .default) { [weak self] _ in
+            self?.presentCarbEntryScreen(nil)
+        })
+        menu.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
+
+        // Required on iPad, where action sheets are shown as popovers.
+        menu.popoverPresentationController?.barButtonItem = carbsItem
+
+        present(menu, animated: true)
+    }
+
+    private func presentQuickMealBolus(for preset: MealPreset) {
+        let carbEntry = preset.makeCarbEntry(defaultAbsorptionTimes: deviceManager.defaultAbsorptionTimes)
+
+        let viewModel = BolusEntryViewModel(
+            delegate: deviceManager,
+            screenWidth: UIScreen.main.bounds.width,
+            potentialCarbEntry: carbEntry,
+            selectedCarbAbsorptionTimeEmoji: preset.emoji
+        )
+        viewModel.analyticsServicesManager = deviceManager.analyticsServicesManager
+        Task { @MainActor in
+            await viewModel.generateRecommendationAndStartObserving()
+        }
+
+        weak var weakNavigationWrapper: UINavigationController?
+        let quickView = QuickMealBolusView(preset: preset, viewModel: viewModel, onCustomize: { [weak self] in
+            weakNavigationWrapper?.dismiss(animated: true) {
+                self?.presentCarbEntryScreen(nil, prefilledCarbs: preset.carbGrams)
+            }
+        })
+        .environmentObject(deviceManager.displayGlucosePreference)
+
+        let hostingController = DismissibleHostingController(rootView: quickView, isModalInPresentation: false)
+        let navigationWrapper = UINavigationController(rootViewController: hostingController)
+        weakNavigationWrapper = navigationWrapper
+        hostingController.navigationItem.leftBarButtonItem = UIBarButtonItem(title: NSLocalizedString("Cancel", comment: ""), style: .plain, target: navigationWrapper, action: #selector(dismissWithAnimation))
+        present(navigationWrapper, animated: true)
+
+        deviceManager.analyticsServicesManager.didDisplayCarbEntryScreen()
+        deviceManager.analyticsServicesManager.didDisplayBolusScreen()
+    }
+
+    func presentCarbEntryScreen(_ activity: NSUserActivity?, prefilledCarbs: Double? = nil) {
         let navigationWrapper: UINavigationController
         if FeatureFlags.simpleBolusCalculatorEnabled && !automaticDosingStatus.automaticDosingEnabled {
             let viewModel = SimpleBolusViewModel(delegate: deviceManager, displayMealEntry: true)
@@ -1456,6 +1519,8 @@ final class StatusTableViewController: LoopChartsTableViewController {
             let viewModel = CarbEntryViewModel(delegate: deviceManager)
             if let activity {
                 viewModel.restoreUserActivityState(activity)
+            } else if let prefilledCarbs {
+                viewModel.carbsQuantity = prefilledCarbs
             }
             let carbEntryView = CarbEntryView(viewModel: viewModel)
                 .environmentObject(deviceManager.displayGlucosePreference)
